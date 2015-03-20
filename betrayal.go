@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 )
 
@@ -44,7 +43,7 @@ func Wait(signals ...os.Signal) {
 	sigCh := make(chan os.Signal)
 	betrayalCh := make(chan os.Signal)
 	seppukuCh := make(chan int)
-	go WaitForYourSuddenButInevitableBetrayal(sigCh, betrayalCh, seppukuCh)
+	go waitForYourSuddenButInevitableBetrayal(sigCh, betrayalCh, seppukuCh)
 	signal.Notify(sigCh, signals...)
 	if Daemon != nil {
 		Daemon(betrayalCh, seppukuCh)
@@ -59,7 +58,7 @@ func waitForYourSuddenButInevitableBetrayal(sigCh chan os.Signal, betrayalCh cha
 	timeoutCh := time.After(Timeout)
 
 	if Daemon != nil {
-		externalSigCh <- sig
+		betrayalCh <- sig
 		// if Daemon is working properly it should send the code on seppukuCh soon
 	} else {
 		go func() {
@@ -75,8 +74,8 @@ func waitForYourSuddenButInevitableBetrayal(sigCh chan os.Signal, betrayalCh cha
 	select {
 	case code = <-seppukuCh:
 		// nothing (handled below)
-	case timeoutCh:
-		KillLog()
+	case <-timeoutCh:
+		TimeoutLog()
 		code = TimeoutExitCode
 	}
 	PostLog()
@@ -91,13 +90,13 @@ func initLogPrefixes() {
 		Betrayed = filepath.Base(os.Args[0])
 	}
 	if betrayerPrefix == "" || betrayedPrefix == "" {
-		betrayerPrefix = "[" + betrayer + "] "
-		betrayedPrefix = "[" + betrayed + "] "
-		for len(betrayer) < len(betrayed) {
-			betrayer += " "
+		betrayerPrefix = "[" + Betrayer + "] "
+		betrayedPrefix = "[" + Betrayed + "] "
+		for len(betrayerPrefix) < len(betrayedPrefix) {
+			betrayerPrefix += " "
 		}
-		for len(betrayed) < len(betrayer) {
-			betrayed += " "
+		for len(betrayedPrefix) < len(betrayerPrefix) {
+			betrayedPrefix += " "
 		}
 	}
 }
