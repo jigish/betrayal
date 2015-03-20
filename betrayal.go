@@ -3,6 +3,7 @@ package betrayal
 import (
 	"log"
 	"os"
+	"os/signal"
 	"syscall"
 	"time"
 )
@@ -52,19 +53,19 @@ func Wait(signals ...os.Signal) {
 }
 
 func waitForYourSuddenButInevitableBetrayal(sigCh chan os.Signal, betrayalCh chan os.Signal, seppukuCh chan int) {
-	signal := <-sigCh
+	sig := <-sigCh
 
 	PreLog()
 	timeoutCh := time.After(Timeout)
 
 	if Daemon != nil {
-		externalSigCh <- signal
+		externalSigCh <- sig
 		// if Daemon is working properly it should send the code on seppukuCh soon
 	} else {
 		go func() {
 			var code int
 			if Callback != nil {
-				code = Callback(signal)
+				code = Callback(sig)
 			}
 			seppukuCh <- code
 		}()
