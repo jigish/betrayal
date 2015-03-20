@@ -42,7 +42,7 @@ var PostLog = func() {
 
 func Wait(signals ...os.Signal) {
 	sigCh := make(chan os.Signal)
-	betrayalCh := make(chan os.Signal)
+	betrayalCh := make(chan os.Signal, 1) // buffered so that sending to it doesn't block
 	seppukuCh := make(chan int)
 	go waitForYourSuddenButInevitableBetrayal(sigCh, betrayalCh, seppukuCh)
 	signal.Notify(sigCh, signals...)
