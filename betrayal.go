@@ -13,6 +13,7 @@ var Timeout = 5 * time.Second
 var TimeoutExitCode = 1
 var Logger = log.Printf
 var Callback func(os.Signal) int
+var Daemon func(chan os.Signal, chan int)
 var Betrayer = DefaultBetrayer
 var betrayerPrefix string
 var Betrayed string
@@ -38,24 +39,37 @@ var PostLog = func() {
 
 }
 
-func Wait(betrayalCh chan os.Signal, signals ...os.Signal) {
+func Wait(signals ...os.Signal) {
 	sigCh := make(chan os.Signal)
-	go WaitForYourSuddenButInevitableBetrayal(sigCh)
+	betrayalCh := make(chan os.Signal)
+	seppukuCh := make(chan int)
+	go WaitForYourSuddenButInevitableBetrayal(sigCh, betrayalCh, seppukuCh)
 	signal.Notify(sigCh, signals...)
+	if Daemon != nil {
+		Daemon(betrayalCh, seppukuCh)
+	}
+	time.Sleep(Timeout) // sleep here so we can exit below
 }
 
-func WaitForYourSuddenButInevitableBetrayal(sigCh chan os.Signal) {
+func waitForYourSuddenButInevitableBetrayal(sigCh chan os.Signal, betrayalCh chan os.Signal, seppukuCh chan int) {
 	signal := <-sigCh
+
 	PreLog()
-	seppukuCh := make(chan int)
 	timeoutCh := time.After(Timeout)
-	go func() {
-		var code int
-		if Callback != nil {
-			code = Callback()
-		}
-		seppukuCh <- code
-	}()
+
+	if Daemon != nil {
+		externalSigCh <- signal
+		// if Daemon is working properly it should send the code on seppukuCh soon
+	} else {
+		go func() {
+			var code int
+			if Callback != nil {
+				code = Callback(signal)
+			}
+			seppukuCh <- code
+		}()
+	}
+
 	var code int
 	select {
 	case code = <-seppukuCh:
