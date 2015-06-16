@@ -44,7 +44,7 @@ func Wait(signals ...os.Signal) {
 	sigCh := make(chan os.Signal)
 	betrayalCh := make(chan os.Signal, 1) // buffered so that sending to it doesn't block
 	seppukuCh := make(chan int)
-	go waitForYourSuddenButInevitableBetrayal(sigCh, betrayalCh, seppukuCh)
+	go waitForYourSuddenButInevitableBetrayal(sigCh, betrayalCh, seppukuCh, os.Exit)
 	signal.Notify(sigCh, signals...)
 	if Daemon != nil {
 		Daemon(betrayalCh, seppukuCh)
@@ -52,7 +52,24 @@ func Wait(signals ...os.Signal) {
 	time.Sleep(Timeout) // sleep here so we can exit below
 }
 
-func waitForYourSuddenButInevitableBetrayal(sigCh chan os.Signal, betrayalCh chan os.Signal, seppukuCh chan int) {
+// A function used for testing. will block until the daemon exists
+func Test(sigCh chan os.Signal) int {
+	betrayalCh := make(chan os.Signal, 1) // buffered so that sending to it doesn't block
+	seppukuCh := make(chan int)
+	doneCh := make(chan int)
+	exit := func(code int) {
+		doneCh <- code
+	}
+	go waitForYourSuddenButInevitableBetrayal(sigCh, betrayalCh, seppukuCh, exit)
+	signal.Notify(sigCh, signals...)
+	if Daemon != nil {
+		Daemon(betrayalCh, seppukuCh)
+	}
+	return <-doneCh
+}
+
+func waitForYourSuddenButInevitableBetrayal(sigCh chan os.Signal, betrayalCh chan os.Signal, seppukuCh chan int,
+	exit func(int)) {
 	sig := <-sigCh
 
 	PreLog()
@@ -80,7 +97,7 @@ func waitForYourSuddenButInevitableBetrayal(sigCh chan os.Signal, betrayalCh cha
 		code = TimeoutExitCode
 	}
 	PostLog()
-	os.Exit(code)
+	exit(code)
 }
 
 func initLogPrefixes() {
