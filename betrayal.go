@@ -61,7 +61,6 @@ func Test(sigCh chan os.Signal) int {
 		doneCh <- code
 	}
 	go waitForYourSuddenButInevitableBetrayal(sigCh, betrayalCh, seppukuCh, exit)
-	signal.Notify(sigCh, signals...)
 	if Daemon != nil {
 		Daemon(betrayalCh, seppukuCh)
 	}
